@@ -38,7 +38,8 @@ jobs:
           python -m py_compile diagnostics/native_handoff.py
       - name: Install CPU configuration-test dependencies
         run: |
-          python -m pip install 'jax[cpu]==${{ matrix.jax }}' 'colorama==0.4.6' 'termcolor==3.3.0'
+          python -m pip install 'jax[cpu]==${{ matrix.jax }}' 'colorama==0.4.6' 'termcolor==3.3.0' 'packaging==25.0'
+          python -c 'import colorama, termcolor, packaging.version, numpy, jax'
           python -m pip freeze > diagnostic-results/packages.txt
       - name: Check baseline and candidate using real module imports
         shell: bash

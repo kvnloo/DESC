@@ -1,0 +1,53 @@
+name: DESC 2324 config handoff diagnostic
+'on':
+  push:
+    branches: [probe/desc-2324-handoff-20260924]
+permissions:
+  contents: read
+concurrency:
+  group: desc-2324-handoff-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  diagnostic:
+    if: github.repository == 'kvnloo/DESC'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        jax: ['0.6.2', '0.9.0.1']
+    env:
+      OMP_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+          sparse-checkout: |
+            desc
+            diagnostics
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Syntax and source revision
+        run: |
+          mkdir -p diagnostic-results
+          git rev-parse HEAD | tee diagnostic-results/commit.txt
+          python -m py_compile diagnostics/native_handoff.py
+      - name: Install CPU configuration-test dependencies
+        run: |
+          python -m pip install 'jax[cpu]==${{ matrix.jax }}' 'colorama==0.4.6' 'termcolor==3.3.0'
+          python -m pip freeze > diagnostic-results/packages.txt
+      - name: Check baseline and candidate using real module imports
+        shell: bash
+        run: |
+          set -euo pipefail
+          python diagnostics/native_handoff.py "$GITHUB_WORKSPACE" 2>&1 | tee diagnostic-results/native.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: desc-2324-jax-${{ matrix.jax }}
+          path: diagnostic-results/
+          if-no-files-found: error
